@@ -1,23 +1,14 @@
 import { useState, useEffect } from 'react';
-import {
-  StellarWalletsKit,
-  WalletNetwork,
-  WalletType,
-} from '@creit.tech/stellar-wallets-kit';
-import { rpc, networks, Contract, xdr, TransactionBuilder, Address } from '@stellar/stellar-sdk';
+import { rpc, Networks, Contract, xdr, TransactionBuilder, Address } from '@stellar/stellar-sdk';
+import { isAllowed, setAllowed, getAddress, signTransaction } from '@stellar/freighter-api';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
 // TODO: Replace with deployed contract IDs
 const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CDSTAKING...";
-const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CDTOKEN...";
-const NETWORK_PASSPHRASE = networks.TESTNET;
+// const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CDTOKEN...";
+const NETWORK_PASSPHRASE = Networks.TESTNET;
 const RPC_URL = 'https://soroban-testnet.stellar.org';
-
-const kit = new StellarWalletsKit({
-  network: WalletNetwork.TESTNET,
-  selectedWalletId: WalletType.FREIGHTER,
-});
 
 export default function App() {
   const [address, setAddress] = useState<string | null>(null);
@@ -52,7 +43,7 @@ export default function App() {
             return {
               id: e.id,
               type: typeStr,
-              user: e.topic[1] ? 'User' : 'Unknown', // Ideally parse scval
+              user: e.topic[1] ? 'User' : 'Unknown', 
               amount: e.value ? e.value.value().toString() : '0',
               time: new Date().toLocaleTimeString()
             };
@@ -73,14 +64,16 @@ export default function App() {
 
   const connectWallet = async () => {
     try {
-      await kit.openModal({
-        onWalletSelected: async (option) => {
-          kit.setWallet(option.id);
-          const pk = await kit.getPublicKey();
-          setAddress(pk);
-          setStatus({type: 'success', msg: 'Wallet connected successfully'});
-        }
-      });
+      if (await isAllowed()) {
+        const pk = await getAddress();
+        setAddress(pk.address);
+        setStatus({type: 'success', msg: 'Wallet connected successfully'});
+      } else {
+        await setAllowed();
+        const pk = await getAddress();
+        setAddress(pk.address);
+        setStatus({type: 'success', msg: 'Wallet connected successfully'});
+      }
     } catch (e: any) {
       setStatus({type: 'error', msg: e.message || 'Wallet connection failed'});
     }
@@ -115,13 +108,17 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await kit.signTransaction(preparedTransaction.toXDR());
-      const txToSubmit = xdr.TransactionEnvelope.fromXDR(signedTransaction, 'base64');
+      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE
+      }) as any;
+      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
+      
+      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
       
       setStatus({type: 'pending', msg: 'Submitting transaction...'});
-      const response = await server.submitTransaction(txToSubmit);
+      const response = await server.sendTransaction(txToSubmit);
       
-      if (response.status === 'SUCCESS') {
+      if (response.status === 'PENDING') {
         setStatus({type: 'success', msg: 'Staked successfully', hash: response.hash});
         setStakedAmount((prev) => (Number(prev) + Number(stakeInput)).toString());
         setStakeInput('');
@@ -153,11 +150,14 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await kit.signTransaction(preparedTransaction.toXDR());
-      const txToSubmit = xdr.TransactionEnvelope.fromXDR(signedTransaction, 'base64');
+      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE
+      }) as any;
+      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
+      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
       
-      const response = await server.submitTransaction(txToSubmit);
-      if (response.status === 'SUCCESS') {
+      const response = await server.sendTransaction(txToSubmit);
+      if (response.status === 'PENDING') {
         setStatus({type: 'success', msg: 'Unstaked successfully', hash: response.hash});
         setStakedAmount('0');
         setPendingRewards('0');
@@ -189,11 +189,14 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await kit.signTransaction(preparedTransaction.toXDR());
-      const txToSubmit = xdr.TransactionEnvelope.fromXDR(signedTransaction, 'base64');
+      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE
+      }) as any;
+      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
+      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
       
-      const response = await server.submitTransaction(txToSubmit);
-      if (response.status === 'SUCCESS') {
+      const response = await server.sendTransaction(txToSubmit);
+      if (response.status === 'PENDING') {
         setStatus({type: 'success', msg: 'Rewards claimed successfully', hash: response.hash});
         setPendingRewards('0');
       } else {
@@ -203,6 +206,16 @@ export default function App() {
       setStatus({type: 'error', msg: 'Transaction failed: ' + e.message});
     }
   };
+
+  // Mock incrementing rewards for UI demo
+  useEffect(() => {
+    if (Number(stakedAmount) > 0) {
+      const interval = setInterval(() => {
+        setPendingRewards(prev => (Number(prev) + Number(stakedAmount) * 0.01).toFixed(4));
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [stakedAmount]);
 
   return (
     <div className="container">
