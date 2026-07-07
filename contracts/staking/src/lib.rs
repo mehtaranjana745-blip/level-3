@@ -47,7 +47,7 @@ impl StakingContract {
         let current_time = env.ledger().timestamp();
         
         let mut new_amount = amount;
-        if let Some(mut existing_stake) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
+        if let Some(existing_stake) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
             // Claim rewards for the existing stake before updating
             Self::claim_rewards(env.clone(), user.clone());
             new_amount += existing_stake.amount;
