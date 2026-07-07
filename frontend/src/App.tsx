@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rpc, Networks, Contract, xdr, TransactionBuilder, Address } from '@stellar/stellar-sdk';
-import { isAllowed, setAllowed, getAddress, signTransaction, isConnected } from '@stellar/freighter-api';
+import { isAllowed, setAllowed, getAddress, signTransaction, isConnected, requestAccess } from '@stellar/freighter-api';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
@@ -65,18 +65,17 @@ export default function App() {
   const connectWallet = async () => {
     try {
       if (!(await isConnected())) {
-        setStatus({type: 'error', msg: 'Please install Freighter Wallet extension!'});
+        setStatus({type: 'error', msg: 'Please install Freighter Wallet extension and refresh the page!'});
         return;
       }
-      if (await isAllowed()) {
+      
+      const access = await requestAccess();
+      if (access) {
         const pk = await getAddress();
         setAddress(pk.address);
         setStatus({type: 'success', msg: 'Wallet connected successfully'});
       } else {
-        await setAllowed();
-        const pk = await getAddress();
-        setAddress(pk.address);
-        setStatus({type: 'success', msg: 'Wallet connected successfully'});
+        setStatus({type: 'error', msg: 'Wallet connection rejected by user'});
       }
     } catch (e: any) {
       setStatus({type: 'error', msg: e.message || 'Wallet connection failed'});
