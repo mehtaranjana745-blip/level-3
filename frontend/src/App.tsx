@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { rpc, Networks, Contract, xdr, TransactionBuilder, Address } from '@stellar/stellar-sdk';
-import { isAllowed, setAllowed, getAddress, signTransaction, isConnected, requestAccess } from '@stellar/freighter-api';
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
+import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
@@ -9,6 +10,8 @@ const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CDSTAKI
 // const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CDTOKEN...";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
 const RPC_URL = 'https://soroban-testnet.stellar.org';
+
+StellarWalletsKit.init({ modules: defaultModules() });
 
 export default function App() {
   const [address, setAddress] = useState<string | null>(null);
@@ -38,7 +41,7 @@ export default function App() {
           const parsedEvents = response.events.map((e: any) => {
             let typeStr = "Unknown";
             if (e.topic && e.topic[0]) {
-               try { typeStr = e.topic[0].value().toString(); } catch (e) {}
+               try { typeStr = e.topic[0].value().toString(); } catch {}
             }
             return {
               id: e.id,
@@ -64,19 +67,9 @@ export default function App() {
 
   const connectWallet = async () => {
     try {
-      if (!(await isConnected())) {
-        setStatus({type: 'error', msg: 'Please install Freighter Wallet extension and refresh the page!'});
-        return;
-      }
-      
-      const access = await requestAccess();
-      if (access) {
-        const pk = await getAddress();
-        setAddress(pk.address);
-        setStatus({type: 'success', msg: 'Wallet connected successfully'});
-      } else {
-        setStatus({type: 'error', msg: 'Wallet connection rejected by user'});
-      }
+      const { address: newAddress } = await StellarWalletsKit.authModal();
+      setAddress(newAddress);
+      setStatus({type: 'success', msg: 'Wallet connected successfully'});
     } catch (e: any) {
       setStatus({type: 'error', msg: e.message || 'Wallet connection failed'});
     }
@@ -111,12 +104,12 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
-        networkPassphrase: NETWORK_PASSPHRASE
-      }) as any;
-      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE,
+        address
+      });
       
-      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
+      const txToSubmit = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as any;
       
       setStatus({type: 'pending', msg: 'Submitting transaction...'});
       const response = await server.sendTransaction(txToSubmit);
@@ -153,11 +146,11 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
-        networkPassphrase: NETWORK_PASSPHRASE
-      }) as any;
-      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
-      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE,
+        address
+      });
+      const txToSubmit = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as any;
       
       const response = await server.sendTransaction(txToSubmit);
       if (response.status === 'PENDING') {
@@ -192,11 +185,11 @@ export default function App() {
       .build();
 
       const preparedTransaction = await server.prepareTransaction(tx);
-      const signedTransaction = await signTransaction(preparedTransaction.toXDR(), {
-        networkPassphrase: NETWORK_PASSPHRASE
-      }) as any;
-      const signedXdr = typeof signedTransaction === 'string' ? signedTransaction : signedTransaction.signedTxXdr;
-      const txToSubmit = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE) as any;
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(preparedTransaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE,
+        address
+      });
+      const txToSubmit = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as any;
       
       const response = await server.sendTransaction(txToSubmit);
       if (response.status === 'PENDING') {
