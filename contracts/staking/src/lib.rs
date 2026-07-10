@@ -89,12 +89,13 @@ impl StakingContract {
         
         let rewards = Self::calculate_rewards(env.clone(), user.clone());
         if rewards > 0 {
-            // In a real app we'd mint rewards here via cross-contract call.
-            // For this demo, we just emit an event to prevent WASM compilation issues.
             if let Some(mut stake_info) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
                 stake_info.timestamp = env.ledger().timestamp();
                 env.storage().persistent().set(&DataKey::Stake(user.clone()), &stake_info);
             }
+
+            let token_id: Address = env.storage().instance().get(&DataKey::RewardToken).unwrap();
+            env.invoke_contract::<()>(&token_id, &soroban_sdk::Symbol::new(&env, "mint"), (user.clone(), rewards).into_val(&env));
 
             env.events().publish((soroban_sdk::symbol_short!("Claimed"), user), rewards);
         }
