@@ -82,7 +82,7 @@ fn test_unstake_and_rewards() {
 
     env.ledger().with_mut(|l| l.timestamp = 1050); // 50 seconds passed
     
-    let expected_rewards = 100 * 50; // 5000
+    let expected_rewards = (100 * 50) / 100; // 50
     
     assert_eq!(staking_client.calculate_rewards(&user), expected_rewards);
     
@@ -109,7 +109,7 @@ fn test_inter_contract_call_claim_rewards() {
     staking_client.claim_rewards(&user);
     
     // Check balance is updated via inter-contract mint call
-    assert_eq!(reward_token_client.balance(&user), 200 * 10);
+    assert_eq!(reward_token_client.balance(&user), (200 * 10) / 100);
 }
 
 #[test]

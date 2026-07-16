@@ -89,8 +89,8 @@ impl StakingContract {
             let current_time = env.ledger().timestamp();
             let time_staked = current_time.saturating_sub(stake_info.timestamp) as i128;
             
-            // Reward formula: 1 reward token per 1 stake unit per second for demo purposes
-            stake_info.amount * time_staked
+            // Reward formula: 0.01 reward token per 1 stake unit per second for demo purposes
+            (stake_info.amount * time_staked) / 100
         } else {
             0
         }

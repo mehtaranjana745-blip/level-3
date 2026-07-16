@@ -5,8 +5,8 @@ import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
-const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CADERYULZE76K23VX36Y4ZK53O7E6I2AE6MXHLNMSQ5XCEVX3DJPFWN2";
-const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CCPEZRYA5YC4XK2D5BEQFS3ZHIAV3UYU5VNXQJGHDX5IE64CHZYH2QSV";
+const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CC7TQ56NU4YDBITTGPNIO6IPEGBEL2CABV2EC55Z3MLIY7QCXICRGGT2";
+const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CDUPTQYFX2526AT5R3LY33DT3UFMO7ELLJ2VPFJFLQKCRILTZZKWHZ4N";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
 const RPC_URL = 'https://soroban-testnet.stellar.org';
 
@@ -140,18 +140,7 @@ export default function App() {
     }
   }, []);
 
-  // Increment pending rewards in real-time between contract polls
-  useEffect(() => {
-    if (Number(stakedAmount) > 0) {
-      const interval = setInterval(() => {
-        setPendingRewards(prev => {
-          const current = Number(prev);
-          return (current + Number(stakedAmount) * 0.1).toFixed(4);
-        });
-      }, 100);
-      return () => clearInterval(interval);
-    }
-  }, [stakedAmount]);
+
 
   const connectWallet = async () => {
     try {
