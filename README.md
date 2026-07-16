@@ -155,10 +155,10 @@ If any tests fail or the frontend fails to build, the pipeline fails.
 5. **Real-time Event Feed**: Watch the "Live Activity" panel instantly populate with your `Staked` and `Claimed` actions via Soroban RPC event polling.
 
 ## Screenshots
-- ![Mobile Responsive UI](./screenshots/mobile-view.png)
-- ![CI/CD Pipeline Passing](./screenshots/cicd-pipeline.png)
-- ![Test Output](./screenshots/test-output.png)
-- ![Transaction Success](./screenshots/tx-success.png)
+- ![Mobile Responsive UI](./image-1.png)
+- ![CI/CD Pipeline Passing](./image.png)
+- ![Test Output](./image-2.png)
+- ![Transaction Success](./image-3.png)
 
 ## Transaction Verification
 - **Example Transaction Hash**: `<YOUR_TX_HASH>` *(Replace with a real tx hash after deploying and testing)*
