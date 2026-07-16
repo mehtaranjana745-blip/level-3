@@ -87,13 +87,13 @@ export default function App() {
     const fetchEvents = async () => {
       try {
         const server = new rpc.Server(RPC_URL);
+        const latestLedger = (await server.getLatestLedger()).sequence;
         const response = await server.getEvents({
-          startLedger: (await server.getLatestLedger()).sequence - 1000,
+          startLedger: latestLedger - 10000,
           filters: [
             {
               type: "contract",
-              contractIds: [STAKING_CONTRACT_ID],
-              topics: [["*", "*", "*", "*"]]
+              contractIds: [STAKING_CONTRACT_ID]
             }
           ]
         });
@@ -101,14 +101,28 @@ export default function App() {
         if (response.events) {
           const parsedEvents = response.events.map((e: any) => {
             let typeStr = "Unknown";
-            if (e.topic && e.topic[0]) {
-               try { typeStr = e.topic[0].value().toString(); } catch {}
+            let userStr = "Unknown";
+            let amountVal = "0";
+            
+            try {
+              if (e.topic && e.topic[0]) {
+                typeStr = scValToNative(e.topic[0]);
+              }
+              if (e.topic && e.topic[1]) {
+                userStr = scValToNative(e.topic[1]).toString();
+              }
+              if (e.value) {
+                amountVal = scValToNative(e.value).toString();
+              }
+            } catch (err) {
+              console.error("Error parsing event XDR:", err);
             }
+            
             return {
               id: e.id,
               type: typeStr,
-              user: e.topic[1] ? 'User' : 'Unknown', 
-              amount: e.value ? e.value.value().toString() : '0',
+              user: userStr !== "Unknown" ? `${userStr.slice(0, 4)}...${userStr.slice(-4)}` : "Unknown", 
+              amount: amountVal,
               time: new Date().toLocaleTimeString()
             };
           });
@@ -125,6 +139,19 @@ export default function App() {
       return () => clearInterval(interval);
     }
   }, []);
+
+  // Increment pending rewards in real-time between contract polls
+  useEffect(() => {
+    if (Number(stakedAmount) > 0) {
+      const interval = setInterval(() => {
+        setPendingRewards(prev => {
+          const current = Number(prev);
+          return (current + Number(stakedAmount)).toString();
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [stakedAmount]);
 
   const connectWallet = async () => {
     try {
