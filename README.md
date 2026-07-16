@@ -172,7 +172,7 @@ If any tests fail or the frontend fails to build, the pipeline fails.
 - **Example Transaction Hash**: `<YOUR_TX_HASH>` *(Replace with a real tx hash after deploying and testing)*
 
 ## Demo Video
-- `<YOUR_DEMO_VIDEO_LINK>` *(Replace with a link to your 1-2 min demo)*
+- [Google Photos Demo Video](https://photos.app.goo.gl/mnBwaWzCNjJJ931w7)
 
 ## Project Structure
 ```text
