@@ -41,7 +41,7 @@ export default function App() {
       const stakeSim = await server.simulateTransaction(stakeTx);
       if (rpc.Api.isSimulationSuccess(stakeSim) && stakeSim.result && stakeSim.result.retval) {
         const val = scValToNative(stakeSim.result.retval);
-        setStakedAmount(val.toString());
+        setStakedAmount((Number(val) / 10000000).toString());
       }
       
       // 2. Get Pending Rewards
@@ -58,7 +58,7 @@ export default function App() {
       const rewardsSim = await server.simulateTransaction(rewardsTx);
       if (rpc.Api.isSimulationSuccess(rewardsSim) && rewardsSim.result && rewardsSim.result.retval) {
         const val = scValToNative(rewardsSim.result.retval);
-        setPendingRewards(val.toString());
+        setPendingRewards((Number(val) / 10000000).toFixed(4));
       }
 
       // 3. Get Token Balance
@@ -75,7 +75,7 @@ export default function App() {
       const balanceSim = await server.simulateTransaction(balanceTx);
       if (rpc.Api.isSimulationSuccess(balanceSim) && balanceSim.result && balanceSim.result.retval) {
         const val = scValToNative(balanceSim.result.retval);
-        setTokenBalance(val.toString());
+        setTokenBalance((Number(val) / 10000000).toFixed(4));
       }
     } catch (err) {
       console.error("Error fetching contract data:", err);
@@ -146,9 +146,9 @@ export default function App() {
       const interval = setInterval(() => {
         setPendingRewards(prev => {
           const current = Number(prev);
-          return (current + Number(stakedAmount)).toString();
+          return (current + Number(stakedAmount) * 0.1).toFixed(4);
         });
-      }, 1000);
+      }, 100);
       return () => clearInterval(interval);
     }
   }, [stakedAmount]);
@@ -186,6 +186,8 @@ export default function App() {
       const source = await server.getAccount(address);
       const contract = new Contract(STAKING_CONTRACT_ID);
       
+      const stroopsAmount = (Number(stakeInput) * 10000000).toFixed(0);
+      
       const tx = new TransactionBuilder(source, {
         fee: "10000",
         networkPassphrase: NETWORK_PASSPHRASE,
@@ -193,7 +195,7 @@ export default function App() {
       .addOperation(
         contract.call("stake", 
           new Address(address).toScVal(), 
-          nativeToScVal(stakeInput, { type: "i128" })
+          nativeToScVal(stroopsAmount, { type: "i128" })
         )
       )
       .setTimeout(30)
