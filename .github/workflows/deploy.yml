@@ -13,9 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.81.0
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
       - name: Cache cargo registry and binaries
         uses: actions/cache@v4
         with:
@@ -32,11 +32,7 @@ jobs:
       - name: Install Stellar CLI
         run: cargo binstall --no-confirm stellar-cli
       - name: Build contracts
-        run: cargo build --target wasm32-unknown-unknown --release
-      - name: Optimize contracts
-        run: |
-          stellar contract optimize --wasm target/wasm32-unknown-unknown/release/token.wasm
-          stellar contract optimize --wasm target/wasm32-unknown-unknown/release/staking.wasm
+        run: stellar contract build
       - name: Deploy to Testnet
         run: |
           echo "Generating identities..."
@@ -45,14 +41,14 @@ jobs:
           
           echo "Deploying Token Contract..."
           TOKEN_ID=$(stellar contract deploy \
-            --wasm target/wasm32-unknown-unknown/release/token.optimized.wasm \
+            --wasm target/wasm32v1-none/release/token.wasm \
             --source deployer \
             --network testnet 2>token_deploy_err.log) || { cat token_deploy_err.log; exit 1; }
           echo "Token Contract ID: $TOKEN_ID"
           
           echo "Deploying Staking Contract..."
           STAKING_ID=$(stellar contract deploy \
-            --wasm target/wasm32-unknown-unknown/release/staking.optimized.wasm \
+            --wasm target/wasm32v1-none/release/staking.wasm \
             --source deployer \
             --network testnet 2>staking_deploy_err.log) || { cat staking_deploy_err.log; exit 1; }
           echo "Staking Contract ID: $STAKING_ID"

@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.81.0
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
       - name: Cache Cargo build
         uses: actions/cache@v4
         with:
@@ -29,8 +29,14 @@ jobs:
           key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-ci-
+      - name: Install cargo-binstall
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install Stellar CLI
+        run: cargo binstall --no-confirm stellar-cli
       - name: Build Contracts
-        run: cargo build --target wasm32-unknown-unknown --release
+        run: stellar contract build
       - name: Run Contract Tests
         run: cargo test --workspace --verbose
   frontend:
