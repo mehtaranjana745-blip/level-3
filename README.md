@@ -155,9 +155,17 @@ If any tests fail or the frontend fails to build, the pipeline fails.
 5. **Real-time Event Feed**: Watch the "Live Activity" panel instantly populate with your `Staked` and `Claimed` actions via Soroban RPC event polling.
 
 ## Screenshots
+
+### Mobile Responsive UI
 - ![Mobile Responsive UI](./image-1.png)
-- ![CI/CD Pipeline Passing](./image.png)
+
+### CI/CD Workflow
+- ![CI/CD Workflow](./image.png)
+
+### Test Output
 - ![Test Output](./image-2.png)
+
+### Transaction Success
 - ![Transaction Success](./image-3.png)
 
 ## Transaction Verification
