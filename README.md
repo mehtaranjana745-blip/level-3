@@ -60,7 +60,7 @@ The flow:
 - **Explorer links format**: `https://stellar.expert/explorer/testnet/contract/<contract-id>`
 
 ## Live Demo
-- `<YOUR_LIVE_DEMO_URL>` *(Replace with Vercel/Netlify URL after frontend deployment)*
+- [Live Staking Dashboard](https://level-3-cedu.vercel.app/)
 
 ## Prerequisites
 - **Node.js**: v18+
