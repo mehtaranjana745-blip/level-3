@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { rpc, Networks, Contract, xdr, TransactionBuilder, Address } from '@stellar/stellar-sdk';
+import { rpc, Networks, Contract, TransactionBuilder, Address, nativeToScVal, scValToNative } from '@stellar/stellar-sdk';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
-// TODO: Replace with deployed contract IDs
-const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CDSTAKING...";
-// const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CDTOKEN...";
+const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CCQOB5ASLPRXYY43GB7UVV3ERJBAWREDVVILPAHQ3XSBFCR6G5OATBBV";
+const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CB7Y2C7PFKG7W34WVIAEPSAXP5PGBHCPCHVKERSCEI7Q5XZ52TQP5RZ6";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
 const RPC_URL = 'https://soroban-testnet.stellar.org';
 
@@ -17,9 +16,71 @@ export default function App() {
   const [address, setAddress] = useState<string | null>(null);
   const [stakedAmount, setStakedAmount] = useState('0');
   const [pendingRewards, setPendingRewards] = useState('0');
+  const [tokenBalance, setTokenBalance] = useState('0');
   const [stakeInput, setStakeInput] = useState('');
   const [events, setEvents] = useState<any[]>([]);
   const [status, setStatus] = useState<{type: 'pending'|'success'|'error', msg: string, hash?: string} | null>(null);
+
+  // Fetch real on-chain data from contracts
+  const fetchContractData = async (userAddress: string) => {
+    try {
+      const server = new rpc.Server(RPC_URL);
+      const source = await server.getAccount(userAddress);
+      
+      // 1. Get Stake
+      const stakeTx = new TransactionBuilder(source, {
+        fee: "100",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+      .addOperation(
+        new Contract(STAKING_CONTRACT_ID).call("get_stake", new Address(userAddress).toScVal())
+      )
+      .setTimeout(30)
+      .build();
+      
+      const stakeSim = await server.simulateTransaction(stakeTx);
+      if (rpc.Api.isSimulationSuccess(stakeSim) && stakeSim.result && stakeSim.result.retval) {
+        const val = scValToNative(stakeSim.result.retval);
+        setStakedAmount(val.toString());
+      }
+      
+      // 2. Get Pending Rewards
+      const rewardsTx = new TransactionBuilder(source, {
+        fee: "100",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+      .addOperation(
+        new Contract(STAKING_CONTRACT_ID).call("calculate_rewards", new Address(userAddress).toScVal())
+      )
+      .setTimeout(30)
+      .build();
+      
+      const rewardsSim = await server.simulateTransaction(rewardsTx);
+      if (rpc.Api.isSimulationSuccess(rewardsSim) && rewardsSim.result && rewardsSim.result.retval) {
+        const val = scValToNative(rewardsSim.result.retval);
+        setPendingRewards(val.toString());
+      }
+
+      // 3. Get Token Balance
+      const balanceTx = new TransactionBuilder(source, {
+        fee: "100",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+      .addOperation(
+        new Contract(TOKEN_CONTRACT_ID).call("balance", new Address(userAddress).toScVal())
+      )
+      .setTimeout(30)
+      .build();
+      
+      const balanceSim = await server.simulateTransaction(balanceTx);
+      if (rpc.Api.isSimulationSuccess(balanceSim) && balanceSim.result && balanceSim.result.retval) {
+        const val = scValToNative(balanceSim.result.retval);
+        setTokenBalance(val.toString());
+      }
+    } catch (err) {
+      console.error("Error fetching contract data:", err);
+    }
+  };
 
   // Poll for events
   useEffect(() => {
@@ -70,10 +131,21 @@ export default function App() {
       const { address: newAddress } = await StellarWalletsKit.authModal();
       setAddress(newAddress);
       setStatus({type: 'success', msg: 'Wallet connected successfully'});
+      fetchContractData(newAddress);
     } catch (e: any) {
       setStatus({type: 'error', msg: e.message || 'Wallet connection failed'});
     }
   };
+
+  useEffect(() => {
+    if (address) {
+      fetchContractData(address);
+      const interval = setInterval(() => {
+        fetchContractData(address);
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [address]);
 
   const stake = async () => {
     if (!address) return setStatus({type: 'error', msg: 'Wallet not connected'});
@@ -94,10 +166,7 @@ export default function App() {
       .addOperation(
         contract.call("stake", 
           new Address(address).toScVal(), 
-          xdr.ScVal.scvI128(new xdr.Int128Parts({
-            lo: xdr.Uint64.fromString(stakeInput),
-            hi: xdr.Int64.fromString("0")
-          }))
+          nativeToScVal(stakeInput, { type: "i128" })
         )
       )
       .setTimeout(30)
@@ -116,8 +185,8 @@ export default function App() {
       
       if (response.status === 'PENDING') {
         setStatus({type: 'success', msg: 'Staked successfully', hash: response.hash});
-        setStakedAmount((prev) => (Number(prev) + Number(stakeInput)).toString());
         setStakeInput('');
+        setTimeout(() => fetchContractData(address), 4000);
       } else {
         throw new Error('Transaction failed on network');
       }
@@ -157,6 +226,7 @@ export default function App() {
         setStatus({type: 'success', msg: 'Unstaked successfully', hash: response.hash});
         setStakedAmount('0');
         setPendingRewards('0');
+        setTimeout(() => fetchContractData(address), 4000);
       } else {
         throw new Error('Transaction failed on network');
       }
@@ -195,6 +265,7 @@ export default function App() {
       if (response.status === 'PENDING') {
         setStatus({type: 'success', msg: 'Rewards claimed successfully', hash: response.hash});
         setPendingRewards('0');
+        setTimeout(() => fetchContractData(address), 4000);
       } else {
         throw new Error('Transaction failed on network');
       }
@@ -202,16 +273,6 @@ export default function App() {
       setStatus({type: 'error', msg: 'Transaction failed: ' + e.message});
     }
   };
-
-  // Mock incrementing rewards for UI demo
-  useEffect(() => {
-    if (Number(stakedAmount) > 0) {
-      const interval = setInterval(() => {
-        setPendingRewards(prev => (Number(prev) + Number(stakedAmount) * 0.01).toFixed(4));
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [stakedAmount]);
 
   return (
     <div className="container">
@@ -240,7 +301,7 @@ export default function App() {
             Staking Dashboard
           </h2>
           
-          <div className="stat-grid">
+          <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
             <div className="stat-card">
               <div className="stat-label">Total Staked</div>
               <div className="stat-value">{stakedAmount} XLM</div>
@@ -249,6 +310,12 @@ export default function App() {
               <div className="stat-label">Pending Rewards</div>
               <div className="stat-value" style={{ color: 'var(--primary)' }}>
                 {pendingRewards} RWT
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">RWT Balance</div>
+              <div className="stat-value" style={{ color: 'var(--accent)' }}>
+                {tokenBalance} RWT
               </div>
             </div>
           </div>

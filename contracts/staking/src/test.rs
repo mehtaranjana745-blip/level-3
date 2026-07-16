@@ -2,7 +2,6 @@
 
 use super::*;
 use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env, String};
-use token_contract::Client as TokenClient;
 
 // We need to import the token contract's WASM or just its types. 
 // However, the `token_contract` module doesn't exist unless we define it.
@@ -95,4 +94,14 @@ fn test_inter_contract_call_claim_rewards() {
     // Check balance is updated via inter-contract mint call
     assert_eq!(token_client.balance(&user), 200 * 10);
 }
+
+#[test]
+fn test_get_stake() {
+    let env = Env::default();
+    let (user, _, _, staking_client) = setup(&env);
+    
+    staking_client.stake(&user, &350);
+    assert_eq!(staking_client.get_stake(&user), 350);
+}
+
 

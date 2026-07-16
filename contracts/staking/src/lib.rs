@@ -43,10 +43,12 @@ impl StakingContract {
         let current_time = env.ledger().timestamp();
         
         let mut new_amount = amount;
-        if let Some(existing_stake) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
+        if let Some(_) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
             // Claim rewards for the existing stake before updating
-            Self::claim_rewards(env.clone(), user.clone());
-            new_amount += existing_stake.amount;
+            Self::claim_rewards_internal(env.clone(), user.clone());
+            if let Some(updated_stake) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
+                new_amount += updated_stake.amount;
+            }
         }
 
         env.storage().persistent().set(
@@ -64,7 +66,7 @@ impl StakingContract {
         user.require_auth();
 
         if let Some(stake_info) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
-            Self::claim_rewards(env.clone(), user.clone());
+            Self::claim_rewards_internal(env.clone(), user.clone());
             env.storage().persistent().remove(&DataKey::Stake(user.clone()));
             env.events().publish((soroban_sdk::symbol_short!("Unstaked"), user), stake_info.amount);
         } else {
@@ -84,9 +86,15 @@ impl StakingContract {
         }
     }
 
-    pub fn claim_rewards(env: Env, user: Address) {
-        user.require_auth();
-        
+    pub fn get_stake(env: Env, user: Address) -> i128 {
+        if let Some(stake_info) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user)) {
+            stake_info.amount
+        } else {
+            0
+        }
+    }
+
+    fn claim_rewards_internal(env: Env, user: Address) {
         let rewards = Self::calculate_rewards(env.clone(), user.clone());
         if rewards > 0 {
             if let Some(mut stake_info) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
@@ -97,8 +105,13 @@ impl StakingContract {
             let token_id: Address = env.storage().instance().get(&DataKey::RewardToken).unwrap();
             env.invoke_contract::<()>(&token_id, &soroban_sdk::Symbol::new(&env, "mint"), (user.clone(), rewards).into_val(&env));
 
-            env.events().publish((soroban_sdk::symbol_short!("Claimed"), user), rewards);
+            env.events().publish((soroban_sdk::symbol_short!("Claimed"), user.clone()), rewards);
         }
+    }
+
+    pub fn claim_rewards(env: Env, user: Address) {
+        user.require_auth();
+        Self::claim_rewards_internal(env.clone(), user.clone());
     }
 }
 

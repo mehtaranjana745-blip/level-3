@@ -55,8 +55,8 @@ The flow:
 5. Frontend polls Soroban RPC and displays the successful event in real-time.
 
 ## Deployed Contracts
-- **Token Contract ID**: `CDMGTLGFLXFCUXMI6SO3XZNM23A2YLUSUUA2AHVGJXQAHFYK6WP6KC3O`
-- **Staking Contract ID**: `CAPRWW7UB5IXS4UJISMGKJ434JO3QNP3UUWEXO5QI25PPJF7ZGU6KQDM`
+- **Token Contract ID**: `CB7Y2C7PFKG7W34WVIAEPSAXP5PGBHCPCHVKERSCEI7Q5XZ52TQP5RZ6`
+- **Staking Contract ID**: `CCQOB5ASLPRXYY43GB7UVV3ERJBAWREDVVILPAHQ3XSBFCR6G5OATBBV`
 - **Explorer links format**: `https://stellar.expert/explorer/testnet/contract/<contract-id>`
 
 ## Live Demo
