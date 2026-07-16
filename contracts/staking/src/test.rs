@@ -17,43 +17,57 @@ use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env, String};
 use token::TokenContractClient;
 use token::TokenContract;
 
-fn setup(env: &Env) -> (Address, TokenContractClient<'static>, Address, StakingContractClient<'static>) {
+fn setup(env: &Env) -> (Address, TokenContractClient<'static>, TokenContractClient<'static>, Address, StakingContractClient<'static>) {
     env.mock_all_auths();
     
-    // Register token contract
-    let token_id = env.register_contract(None, TokenContract);
-    let token_client = TokenContractClient::new(&env, &token_id);
+    // Register reward token contract
+    let reward_token_id = env.register_contract(None, TokenContract);
+    let reward_token_client = TokenContractClient::new(&env, &reward_token_id);
     
-    // Initialize token contract
+    // Initialize reward token contract
     let admin = Address::generate(&env);
-    let name = String::from_str(&env, "Reward");
-    let symbol = String::from_str(&env, "RWD");
+    let name1 = String::from_str(&env, "Reward");
+    let symbol1 = String::from_str(&env, "RWD");
+    reward_token_client.initialize(&admin, &name1, &symbol1); 
+
+    // Register staking token contract
+    let staking_token_id = env.register_contract(None, TokenContract);
+    let staking_token_client = TokenContractClient::new(&env, &staking_token_id);
     
-    token_client.initialize(&admin, &name, &symbol); 
+    // Initialize staking token contract
+    let name2 = String::from_str(&env, "Staking");
+    let symbol2 = String::from_str(&env, "STK");
+    staking_token_client.initialize(&admin, &name2, &symbol2); 
 
     // Register staking contract
     let staking_id = env.register_contract(None, StakingContract);
     let staking_client = StakingContractClient::new(&env, &staking_id);
 
-    // Give staking contract admin rights over token (for minting)
-    token_client.set_admin(&staking_id);
+    // Give staking contract admin rights over reward token (for minting)
+    reward_token_client.set_admin(&staking_id);
 
-    staking_client.initialize(&token_id);
+    // Initialize staking contract with both reward and staking tokens
+    staking_client.initialize(&reward_token_id, &staking_token_id);
 
     let user = Address::generate(&env);
-    (user, token_client, staking_id, staking_client)
+    
+    // Fund the user with some staking tokens
+    staking_token_client.mint(&user, &1000000);
+
+    (user, reward_token_client, staking_token_client, staking_id, staking_client)
 }
 
 #[test]
 fn test_successful_stake() {
     let env = Env::default();
-    let (user, _, _, staking_client) = setup(&env);
+    let (user, _, staking_token_client, _, staking_client) = setup(&env);
     
     env.ledger().with_mut(|l| l.timestamp = 1000);
     staking_client.stake(&user, &500);
 
-    // No way to directly read state easily without a getter, but we can verify it doesn't panic
-    // And we can calculate rewards at time 1000 which should be 0.
+    // Verify staking tokens were debited from the user's account
+    assert_eq!(staking_token_client.balance(&user), 1000000 - 500);
+
     let rewards = staking_client.calculate_rewards(&user);
     assert_eq!(rewards, 0);
 }
@@ -61,7 +75,7 @@ fn test_successful_stake() {
 #[test]
 fn test_unstake_and_rewards() {
     let env = Env::default();
-    let (user, token_client, _, staking_client) = setup(&env);
+    let (user, reward_token_client, staking_token_client, _, staking_client) = setup(&env);
     
     env.ledger().with_mut(|l| l.timestamp = 1000);
     staking_client.stake(&user, &100);
@@ -74,14 +88,17 @@ fn test_unstake_and_rewards() {
     
     staking_client.unstake(&user);
     
-    // The balance should be the claimed rewards
-    assert_eq!(token_client.balance(&user), expected_rewards);
+    // Verify staking tokens were credited back to the user
+    assert_eq!(staking_token_client.balance(&user), 1000000);
+    
+    // Verify reward tokens were claimed and credited
+    assert_eq!(reward_token_client.balance(&user), expected_rewards);
 }
 
 #[test]
 fn test_inter_contract_call_claim_rewards() {
     let env = Env::default();
-    let (user, token_client, _, staking_client) = setup(&env);
+    let (user, reward_token_client, _, _, staking_client) = setup(&env);
     
     env.ledger().with_mut(|l| l.timestamp = 1000);
     staking_client.stake(&user, &200);
@@ -92,13 +109,13 @@ fn test_inter_contract_call_claim_rewards() {
     staking_client.claim_rewards(&user);
     
     // Check balance is updated via inter-contract mint call
-    assert_eq!(token_client.balance(&user), 200 * 10);
+    assert_eq!(reward_token_client.balance(&user), 200 * 10);
 }
 
 #[test]
 fn test_get_stake() {
     let env = Env::default();
-    let (user, _, _, staking_client) = setup(&env);
+    let (user, _, _, _, staking_client) = setup(&env);
     
     staking_client.stake(&user, &350);
     assert_eq!(staking_client.get_stake(&user), 350);

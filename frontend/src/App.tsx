@@ -5,8 +5,8 @@ import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { Activity, Coins, Clock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import './index.css';
 
-const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CCQOB5ASLPRXYY43GB7UVV3ERJBAWREDVVILPAHQ3XSBFCR6G5OATBBV";
-const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CB7Y2C7PFKG7W34WVIAEPSAXP5PGBHCPCHVKERSCEI7Q5XZ52TQP5RZ6";
+const STAKING_CONTRACT_ID = import.meta.env.VITE_STAKING_CONTRACT_ID || "CADERYULZE76K23VX36Y4ZK53O7E6I2AE6MXHLNMSQ5XCEVX3DJPFWN2";
+const TOKEN_CONTRACT_ID = import.meta.env.VITE_TOKEN_CONTRACT_ID || "CCPEZRYA5YC4XK2D5BEQFS3ZHIAV3UYU5VNXQJGHDX5IE64CHZYH2QSV";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
 const RPC_URL = 'https://soroban-testnet.stellar.org';
 

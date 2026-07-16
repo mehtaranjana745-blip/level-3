@@ -17,7 +17,8 @@ $admin_address = (stellar keys address admin)
 stellar contract invoke --id $token_address --network testnet --source admin -- initialize --admin $admin_address --name "RewardToken" --symbol "RWD"
 
 Write-Host "Initializing Staking Contract..."
-stellar contract invoke --id $staking_address --network testnet --source admin -- initialize --reward_token $token_address
+$native_token_address = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+stellar contract invoke --id $staking_address --network testnet --source admin -- initialize --reward_token $token_address --staking_token $native_token_address
 
 Write-Host "Setting Staking Contract as Token Admin..."
 stellar contract invoke --id $token_address --network testnet --source admin -- set_admin --new_admin $staking_address

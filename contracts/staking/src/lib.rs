@@ -7,6 +7,7 @@ use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, IntoVal};
 #[derive(Clone)]
 pub enum DataKey {
     RewardToken,
+    StakingToken,
     Stake(Address),
 }
 
@@ -22,11 +23,12 @@ pub struct StakingContract;
 
 #[contractimpl]
 impl StakingContract {
-    pub fn initialize(env: Env, reward_token: Address) {
+    pub fn initialize(env: Env, reward_token: Address, staking_token: Address) {
         if env.storage().instance().has(&DataKey::RewardToken) {
             panic!("already initialized")
         }
         env.storage().instance().set(&DataKey::RewardToken, &reward_token);
+        env.storage().instance().set(&DataKey::StakingToken, &staking_token);
     }
 
     pub fn stake(env: Env, user: Address, amount: i128) {
@@ -35,10 +37,11 @@ impl StakingContract {
             panic!("amount must be positive");
         }
 
-        // Normally we would transfer a staking token from user to contract, 
-        // but for simplicity let's say this contract records native XLM stakes 
-        // or just records the intention (mock stake) for the testnet demo.
-        // We will just record the amount.
+        let staking_token_id: Address = env.storage().instance().get(&DataKey::StakingToken).unwrap();
+        let current_contract = env.current_contract_address();
+        
+        // Transfer staking tokens from user to this contract
+        env.invoke_contract::<()>(&staking_token_id, &soroban_sdk::Symbol::new(&env, "transfer"), (user.clone(), current_contract, amount).into_val(&env));
         
         let current_time = env.ledger().timestamp();
         
@@ -67,6 +70,13 @@ impl StakingContract {
 
         if let Some(stake_info) = env.storage().persistent().get::<_, StakeInfo>(&DataKey::Stake(user.clone())) {
             Self::claim_rewards_internal(env.clone(), user.clone());
+            
+            // Transfer staking tokens back to the user
+            let staking_token_id: Address = env.storage().instance().get(&DataKey::StakingToken).unwrap();
+            let current_contract = env.current_contract_address();
+            
+            env.invoke_contract::<()>(&staking_token_id, &soroban_sdk::Symbol::new(&env, "transfer"), (current_contract, user.clone(), stake_info.amount).into_val(&env));
+            
             env.storage().persistent().remove(&DataKey::Stake(user.clone()));
             env.events().publish((soroban_sdk::symbol_short!("Unstaked"), user), stake_info.amount);
         } else {
